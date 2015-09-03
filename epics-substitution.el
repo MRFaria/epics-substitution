@@ -7,8 +7,8 @@
 
 (defun setup-table (beg end)
   (goto-char beg)
-  (re-search-forward "\\(file\s*\\)\\([a-zA-Z0-9-_]+\\)." end)
-  (let ((name (match-string 2))
+  (re-search-forward "file[[:space:]]+['\"]?\\([a-zA-Z0-9-_]+\\)." end)
+  (let ((name (match-string 1))
         (orgtbl-gubbins))
     (end-of-line)
     (goto-char (1+ (point)))
