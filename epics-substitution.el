@@ -135,14 +135,11 @@ nil      When nil, the command tries to be smart and figure out the
      (replace-regexp-in-string
       ", }" ", \"\"}"
       (replace-regexp-in-string
-       "\\(,\\)\\( \\)\\(,\\)" " \"\""
-       (replace-regexp-in-string
-        "\\(,\\)\\( \\)\\(,\\)" " \"\""
-        (concat "{\npattern"
-                (orgtbl-to-generic
-                 table (org-combine-plists params2 params)))
-        nil nil 2)
-       nil nil 2)
+       "\\( ,\\)" " \"\","
+       (concat "{\npattern"
+               (orgtbl-to-generic 
+                table (org-combine-plists params2 params)))
+       nil nil 1)
       )
      :literal t)))
 
