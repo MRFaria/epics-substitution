@@ -1,9 +1,6 @@
-(provide 'substitution-table-convert-region)
-(provide 'substitution-table-convert-file)
-(provide 'substitution-table-from-template)
-(provide 'orgtbl-to-substitution)
-
 (require 'org-table)
+
+(defvar substitution-templates)
 
 (defun setup-table (beg end)
   (goto-char beg)
@@ -31,6 +28,7 @@
     (setq end (+ end 4)))
   (list beg end))
 
+;;;###autoload
 (defun substitution-table-convert-region (beg0 end0 &optional separator)
   ;; This function is only slightly modified code from org-table
   "Convert region to a table.
@@ -96,6 +94,7 @@ nil      When nil, the command tries to be smart and figure out the
   (orgtbl-send-table)
   (orgtbl-toggle-comment))
 
+;;;###autoload
 (defun substitution-table-convert-file (buffer)
   (interactive "b")
   (set-buffer buffer)
@@ -120,6 +119,7 @@ nil      When nil, the command tries to be smart and figure out the
       (goto-char end)
       )))
 
+;;;###autoload
 (defun orgtbl-to-substitution (table params)
   "Convert the Orgtbl mode TABLE to substitution file syntax."
   (let* ((params2
@@ -143,84 +143,130 @@ nil      When nil, the command tries to be smart and figure out the
       )
      :literal t)))
 
-(defun insert-templates (paths buffer)
+(defun insert-templates (buffer &optional templates)
   (set-buffer buffer)
   (goto-char (point-min))
+  (unless templates
+    (setq templates substitution-templates))
+  ;; Search for template includes
   (while (re-search-forward
           "^include[[:blank:]]+\"\\([_[:word:]]+.template\\)\"" nil t)
-    (let ((index 0))
-      ;; Check if file exists and insert if it does otherwise increment
-      (while (cond
-              ((file-readable-p
-                (concat (nth index paths) "/db/"
-                        (match-string-no-properties 1)))
-               (insert-file-contents (concat (nth index paths) "/db/"
-                                             (match-string-no-properties 1)))
-               nil)
-              ((incf index)
-               (nth index paths)))))))
+    ;; Get the template path from alist "templates"
+    (let ((template-path (gethash (match-string-no-properties 1) templates)))
+      (if template-path
+          (insert-file-contents template-path)))))
 
-(defun read-template-macros (filename paths)
-  "Read template file and includes and return all macros."
-  (let '(macros '())
+(defun read-template-macros (filename);; paths)
+  "Read template file and include and return all macros."
+  (let ((macros '())
+        (templates substitution-templates))
     (save-current-buffer
       (with-temp-buffer
+        (print (concat "filename " filename) (get-buffer "output2"))
         (insert-file-contents filename)
-        (insert-templates paths (current-buffer))
+        (insert-templates (current-buffer) templates)
         (goto-char (point-min))
         (while (re-search-forward
-                "#[[:blank:]]*%[[:blank:]]*macro,[[:blank:]]*\\([[:word:]]+\\)"
+                "#[[:blank:]]*%[[:blank:]]*macro,[[:blank:]]*\\([_[:word:]]+\\)"
                 nil t)
           (add-to-list 'macros (match-string-no-properties 1)))
-        (print macros (get-buffer "output"))))
+        (goto-char (point-min))
+        (while (re-search-forward "$(\\([A-Za-z_]*\\))" nil t)
+          (add-to-list 'macros (match-string-no-properties 1)))))
     macros))
 
-(defun get-paths-from-release (path)
-  (let '(paths '())
-    (setq macros (make-hash-table :test 'equal))
-    (save-current-buffer
-      (with-temp-buffer
-        (insert-file-contents path)
-        ;; Scan through the file and kill all comments
-        (goto-char (point-min))
-        (while (search-forward "#" nil t)
-          (kill-line))
-        ;; Search for macros
-        (goto-char (point-min))
-        (while (re-search-forward
-                "^\\([A-Z_]*\\)[[:blank:]]*=[[:blank:]]*\\(.*\\)" nil t)
-          (puthash (match-string-no-properties 1)
-                   (match-string-no-properties 2)
-                   macros)
-          )
-        ;; Grab paths and substitute any macros
-        (goto-char (point-min))
-        (while (re-search-forward "\$\(\\([A-Z_]*\\)\)\\(.*\\)" nil t)
-          (if (gethash (match-string-no-properties 1) macros)
-              (add-to-list 'paths (concat
-                                   (gethash (match-string-no-properties 1)
-                                            macros)
-                                   (match-string-no-properties 2)))))))
-    paths))
+(defun remove-comments ()
+  (save-excursion
+    (goto-char (point-min))
+    (while (search-forward "#" nil t)
+      (kill-line))))
 
-(defun substitution-table-from-template (template-file)
-  "Insert an org-table with headings from a template containing #%macros"
-  (interactive "f")
-  (setq paths (get-paths-from-release (concat
-                                       (file-name-directory template-file)
-                                       "../../configure/RELEASE")))
-  (setq macros (read-template-macros template-file paths))
-  (setq name (file-name-base template-file))
-  (insert (concat "file " (file-name-nondirectory template-file)
-                  "\n#+ BEGIN RECEIVE ORGTBL " name
-                  "\n#+ END RECEIVE ORGTBL " name
-                  "\n\n#+ORGTBL: SEND " name
-                  " orgtbl-to-substitution :no-escape t\n"))
-  (org-table-create (concat
-                     (number-to-string (list-length macros)) "x2"))
-  (forward-char)
-  (dolist (heading (nreverse macros))
-    (insert heading)
-    (org-table-next-field))
-  (org-table-align))
+(defun expand-macros (macros)
+  (maphash (lambda (key value) "Expand macros in value from 'macros' hash"
+             ;; Find a macro ie $(MACRO) in value
+             (if (string-match "\\$\(\\([A-Z0-9_]*\\)\)" value)
+                 ;;(prin1 (match-string 1 value) (get-buffer "*print*"))
+                 ;; Look for the macro in the macros hash and replace it in value
+                 (puthash key
+                          (replace-match (gethash (match-string 1 value) macros) t nil value)
+                          macros)))
+           macros)
+  macros)
 
+(defun find-macros-in-buffer ()
+  ;; Search for macros
+  (goto-char (point-min))
+  (let ((macros (make-hash-table :test 'equal)))
+    (while (re-search-forward
+            "^\\([A-Z0-9_]*\\)[[:blank:]]*=[[:blank:]]*\\(.*\\)" nil t)
+      (puthash (match-string-no-properties 1)
+               (match-string-no-properties 2)
+               macros))
+    macros))
+
+(defun get-macros (path)
+  "Get macros defined in the file at path"
+  (save-current-buffer
+    (with-temp-buffer
+      (insert-file-contents path)
+      (remove-comments)
+      (expand-macros (find-macros-in-buffer)))))
+
+(ert-deftest test-get-templates ()
+  "Checks that get-templates returns all of the templates"
+  (let ((macros (make-hash-table :test 'equal)))
+    (puthash "SUPPORT" "/dls_sw/prod/R3.14.12.3/support" macros)
+    (puthash "TPMAC" "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18" macros)
+    (prin1 (get-templates macros) (get-buffer "*print*"))
+    (should (equal (gethash "pmacController.template" (get-templates macros)) "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18/db/pmacController.template"))))
+
+(defun get-templates (macros)
+  "Get the templates in PATH/db where PATH is the value in the hash macros"
+  (prin1 macros (get-buffer "*print*"))
+  (let ((template-paths (make-hash-table :test 'equal)))
+    (maphash (lambda (key value)
+               (let ((db-path (concat value "/db/")))
+                 ;; If the db-path exists add all of the templates in it
+                 ;; to the template-paths hash
+                 (if (file-directory-p db-path)
+                     (dolist (template-name (directory-files db-path))
+                       (if (string-match ".template" template-name)
+                           (puthash template-name (concat db-path template-name) template-paths))))))
+             macros)
+    template-paths))
+
+(defun substitution-get-template-macros (release-path)
+  (interactive "fSelect RELEASE file: ")
+  (setq-local substitution-templates (get-templates (get-macros release-path))))
+
+;;;###autoload
+(defun substitution-table-from-template ()
+  (interactive)
+  (if (not substitution-templates)
+      (call-interactively 'substitution-get-template-macros))
+  (let* ((template (completing-read "Select a template: "
+                                    substitution-templates))
+         (macros (read-template-macros (gethash template
+                                                substitution-templates))))
+    (insert (concat "file " template
+                    "\n#+ BEGIN RECEIVE ORGTBL " template
+                    "\n#+ END RECEIVE ORGTBL " template
+                    "\n\n#+ORGTBL: SEND " template
+                    " orgtbl-to-substitution :no-escape t\n"))
+    (org-table-create (concat
+                       (number-to-string (cl-list-length macros)) "x2"))
+    (forward-char)
+    (dolist (heading (nreverse macros))
+      (insert heading)
+      (org-table-next-field))
+    (org-table-align)))
+
+;;;###autoload
+(define-derived-mode epics-substitution-mode fundamental-mode
+  (setq comment-start "#")
+  (orgtbl-mode)
+  (visual-line-mode 0)
+  (setq truncate-lines t)
+  (setq mode-name "epics-substitution"))
+
+(provide 'epics-substitution)
