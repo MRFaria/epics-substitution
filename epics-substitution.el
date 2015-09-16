@@ -239,6 +239,21 @@ nil      When nil, the command tries to be smart and figure out the
   (interactive "fSelect RELEASE file: ")
   (setq-local substitution-templates (get-templates (get-macros release-path))))
 
+(defun substitution-get-docs-from-template (filename)
+  "Look for and return the documentation section of a template"
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (let ((docs (concat "# Template: " (file-name-base filename) "\n"))
+          (macros (read-template-macros filename)))
+      (map 'list (lambda (macro)
+             (save-excursion
+               (re-search-forward (concat "# *% *macro, *" macro))
+               (setq docs
+                     (concat docs (buffer-substring-no-properties
+                                   (point-at-bol) (point-at-eol)) "\n"))))
+           macros)
+           (concat docs "\n"))))
+
 ;;;###autoload
 (defun substitution-table-from-template ()
   (interactive)
@@ -248,6 +263,8 @@ nil      When nil, the command tries to be smart and figure out the
                                     substitution-templates))
          (macros (read-template-macros (gethash template
                                                 substitution-templates))))
+    (insert (substitution-get-docs-from-template
+             (gethash template substitution-templates)))
     (insert (concat "file " template
                     "\n#+ BEGIN RECEIVE ORGTBL " template
                     "\n#+ END RECEIVE ORGTBL " template
