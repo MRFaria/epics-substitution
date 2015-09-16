@@ -1,6 +1,6 @@
 (require 'org-table)
 
-(defvar substitution-templates)
+(defvar substitution-templates nil)
 
 (defun setup-table (beg end)
   (goto-char beg)
