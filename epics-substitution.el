@@ -242,10 +242,14 @@ nil      When nil, the command tries to be smart and figure out the
 
 (defun substitution-get-docs-from-template (filename)
   "Look for and return the documentation section of a template"
-  (with-temp-buffer
-    (insert-file-contents filename)
-    (let ((docs (concat "# Template: " (file-name-base filename) "\n"))
-          (macros (read-template-macros filename)))
+  (let ((templates substitution-templates)
+        (docs (concat "# Template: " (file-name-base filename) "\n"))
+        (macros (read-template-macros filename)))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (insert "\n")
+      (insert-templates (current-buffer) templates)
+      (goto-char (point-min))
       (map 'list (lambda (macro)
                    (save-excursion
                      (if (re-search-forward (concat "# *% *macro, *" macro) nil t)
