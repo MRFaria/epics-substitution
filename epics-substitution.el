@@ -154,7 +154,8 @@ nil      When nil, the command tries to be smart and figure out the
     ;; Get the template path from alist "templates"
     (let ((template-path (gethash (match-string-no-properties 1) templates)))
       (if template-path
-          (insert-file-contents template-path)))))
+          (progn (insert "\n")
+                 (insert-file-contents template-path))))))
 
 (defun read-template-macros (filename);; paths)
   "Read template file and include and return all macros."
