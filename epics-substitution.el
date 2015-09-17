@@ -247,13 +247,13 @@ nil      When nil, the command tries to be smart and figure out the
     (let ((docs (concat "# Template: " (file-name-base filename) "\n"))
           (macros (read-template-macros filename)))
       (map 'list (lambda (macro)
-             (save-excursion
-               (re-search-forward (concat "# *% *macro, *" macro))
-               (setq docs
-                     (concat docs (buffer-substring-no-properties
-                                   (point-at-bol) (point-at-eol)) "\n"))))
+                   (save-excursion
+                     (if (re-search-forward (concat "# *% *macro, *" macro) nil t)
+                         (setq docs
+                               (concat docs (buffer-substring-no-properties
+                                             (point-at-bol) (point-at-eol)) "\n")))))
            macros)
-           (concat docs "\n"))))
+      (concat docs "\n"))))
 
 ;;;###autoload
 (defun substitution-table-from-template ()
