@@ -150,7 +150,8 @@ nil      When nil, the command tries to be smart and figure out the
     (setq templates substitution-templates))
   ;; Search for template includes
   (while (re-search-forward
-          "^include[[:blank:]]+\"\\([_[:word:]]+.template\\)\"" nil t)
+          ;; Look for includes of .template or .db files
+          "^include[[:blank:]]+\"\\([_[:word:]]+\\(?:\\.template\\|\\.db\\)\\)\"" nil t)
     ;; Get the template path from alist "templates"
     (let ((template-path (gethash (match-string-no-properties 1) templates)))
       (if template-path
@@ -231,7 +232,7 @@ nil      When nil, the command tries to be smart and figure out the
                  ;; to the template-paths hash
                  (if (file-directory-p db-path)
                      (dolist (template-name (directory-files db-path))
-                       (if (string-match ".template" template-name)
+                       (if (string-match "\\.template\\|\\.db" template-name)
                            (puthash template-name (concat db-path template-name) template-paths))))))
              macros)
     template-paths))
@@ -293,7 +294,7 @@ nil      When nil, the command tries to be smart and figure out the
   (orgtbl-toggle-comment)
   (goto-char (org-table-begin))
   (save-excursion
-    (re-search-backward "file \\([-_a-zA-Z0-9]+\\.template\\)"))
+    (re-search-backward "file \\([-_a-zA-Z0-9]+\\(?:\\.template\\|\\.db\\)\\)"))
   (message "Filename match: %s" (match-string-no-properties 1))
   (let* ((template-name (match-string-no-properties 1))
          (macros (read-template-macros
