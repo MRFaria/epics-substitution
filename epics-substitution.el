@@ -274,9 +274,11 @@ nil      When nil, the command tries to be smart and figure out the
                        (number-to-string (cl-list-length macros)) "x2"))
     (forward-char)
     (dolist (heading macros)
-      (insert heading)
-      (org-table-next-field))
-    (org-table-align)))
+      (if (not (equal (compare-strings heading 0 2 "__" nil nil) t))
+          (progn (insert heading)
+                 (org-table-next-field))
+        (org-table-delete-column))))
+  (org-table-align))
 
 ;;;###autoload
 (defun substitution-fill-from-region (beg end)
