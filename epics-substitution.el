@@ -169,10 +169,10 @@ nil      When nil, the command tries to be smart and figure out the
         (while (re-search-forward
                 "#[[:blank:]]*%[[:blank:]]*macro,[[:blank:]]*\\([_[:word:]]+\\)"
                 nil t)
-          (add-to-list 'macros (match-string-no-properties 1)))
+          (add-to-list 'macros (match-string-no-properties 1) t))
         (goto-char (point-min))
         (while (re-search-forward "$(\\([A-Za-z_]*\\))" nil t)
-          (add-to-list 'macros (match-string-no-properties 1)))))
+          (add-to-list 'macros (match-string-no-properties 1) t))))
     macros))
 
 (defun remove-comments ()
@@ -273,7 +273,7 @@ nil      When nil, the command tries to be smart and figure out the
     (org-table-create (concat
                        (number-to-string (cl-list-length macros)) "x2"))
     (forward-char)
-    (dolist (heading (nreverse macros))
+    (dolist (heading macros)
       (insert heading)
       (org-table-next-field))
     (org-table-align)))
