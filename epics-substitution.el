@@ -206,20 +206,11 @@ nil      When nil, the command tries to be smart and figure out the
                macros))
     macros))
 
-(defun get-macros (path)
-  "Get macros defined in the file at path"
-  (save-current-buffer
-    (with-temp-buffer
-      (insert-file-contents path)
-      (remove-comments)
-      (expand-macros (find-macros-in-buffer)))))
-
 (ert-deftest test-get-templates ()
   "Checks that get-templates returns all of the templates"
   (let ((macros (make-hash-table :test 'equal)))
     (puthash "SUPPORT" "/dls_sw/prod/R3.14.12.3/support" macros)
     (puthash "TPMAC" "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18" macros)
-    (prin1 (get-templates macros) (get-buffer "*print*"))
     (should (equal (gethash "pmacController.template" (get-templates macros)) "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18/db/pmacController.template"))))
 
 (defun get-templates (macros)
@@ -236,6 +227,14 @@ nil      When nil, the command tries to be smart and figure out the
                            (puthash template-name (concat db-path template-name) template-paths))))))
              macros)
     template-paths))
+
+(defun get-macros (path)
+  "Get macros defined in the file at path"
+  (save-current-buffer
+    (with-temp-buffer
+      (insert-file-contents path)
+      (remove-comments)
+      (expand-macros (find-macros-in-buffer)))))
 
 (defun substitution-get-template-macros (release-path)
   (interactive "fSelect RELEASE file: ")
