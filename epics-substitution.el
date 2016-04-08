@@ -181,6 +181,9 @@ nil      When nil, the command tries to be smart and figure out the
   (save-excursion
     (goto-char (point-min))
     (while (search-forward "#" nil t)
+      ;; Move to the end of the last word before #
+      (backward-word)
+      (forward-word)
       (kill-line))))
 
 (defun expand-macros (macros)
