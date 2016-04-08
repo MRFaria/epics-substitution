@@ -268,13 +268,13 @@ nil      When nil, the command tries to be smart and figure out the
       (insert "\n")
       (insert-templates (current-buffer) templates)
       (goto-char (point-min))
-      (map 'list (lambda (macro)
-                   (save-excursion
-                     (if (re-search-forward (concat "# *% *macro, *" macro) nil t)
-                         (setq docs
-                               (concat docs (buffer-substring-no-properties
-                                             (point-at-bol) (point-at-eol)) "\n")))))
-           macros)
+      (mapc (lambda (macro)
+              (save-excursion
+                (if (re-search-forward (concat "# *% *macro, *" macro) nil t)
+                    (setq docs
+                          (concat docs (buffer-substring-no-properties
+                                        (point-at-bol) (point-at-eol)) "\n")))))
+            macros)
       (concat docs "\n"))))
 
 ;;;###autoload
@@ -294,7 +294,7 @@ nil      When nil, the command tries to be smart and figure out the
                     "\n\n#+ORGTBL: SEND " template
                     " orgtbl-to-substitution :no-escape t\n"))
     (org-table-create (concat
-                       (number-to-string (cl-list-length macros)) "x2"))
+                       (number-to-string (length macros)) "x2"))
     (forward-char)
     (dolist (heading macros)
       (if (not (equal (compare-strings heading 0 2 "__" nil nil) t))
@@ -319,18 +319,18 @@ nil      When nil, the command tries to be smart and figure out the
          (head-pos 0)
          (last-head-pos 0))
     (message "Macros: %s" (type-of macros))
-    (map 'list (lambda (heading)
-                 (message "Heading: %s" heading)
-                 (save-excursion
-                   (unless (setq head-pos
-                                (re-search-forward (concat "| *" heading " *|") (point-at-eol) t))
-                     (message "last-head-pos: %s" last-head-pos)
-                     (goto-char (1+ last-head-pos))
-                     (org-table-insert-column)
-                     (insert heading))
-                   (if head-pos
-                       (setq last-head-pos head-pos))))
-         macros)))
+    (mapc 'list (lambda (heading)
+                  (message "Heading: %s" heading)
+                  (save-excursion
+                    (unless (setq head-pos
+                                  (re-search-forward (concat "| *" heading " *|") (point-at-eol) t))
+                      (message "last-head-pos: %s" last-head-pos)
+                      (goto-char (1+ last-head-pos))
+                      (org-table-insert-column)
+                      (insert heading))
+                    (if head-pos
+                        (setq last-head-pos head-pos))))
+          macros)))
 
 ;;;###autoload
 (define-derived-mode epics-substitution-mode fundamental-mode
