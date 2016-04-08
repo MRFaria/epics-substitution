@@ -231,17 +231,17 @@ nil      When nil, the command tries to be smart and figure out the
              macros)
     template-paths))
 
-(defun get-macros (path)
-  "Get macros defined in the file at path"
-  (save-current-buffer
-    (with-temp-buffer
-      (insert-file-contents path)
-      (remove-comments)
-      (expand-macros (find-macros-in-buffer)))))
+(defun get-macros ()
+  "Get macros defined in current buffer"
+  (remove-comments)
+  (expand-macros (find-macros-in-buffer)))
 
 (defun substitution-get-template-macros (release-path)
   (interactive "fSelect RELEASE file: ")
-  (setq-local substitution-templates (get-templates (get-macros release-path))))
+  (setq-local substitution-templates
+              (get-templates (with-temp-buffer
+                               (insert-file-contents release-path)
+                               (get-macros)))))
 
 (defun substitution-get-docs-from-template (filename)
   "Look for and return the documentation section of a template"
