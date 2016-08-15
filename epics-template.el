@@ -45,7 +45,7 @@
   (if (not device--types)
       (call-interactively 'template-get-device-types))
 
-  (completing-read "Select a template: "
+  (completing-read "Select a device DTYP: "
                                     device--types))
   
 
