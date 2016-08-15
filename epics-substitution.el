@@ -1,3 +1,4 @@
+;; Copyright 2016 Mauro Faria
 ;; Copyright 2016 Adam Bark
 ;;
 ;; This program is free software: you can redistribute it and/or modify
