@@ -37,4 +37,4 @@ of available templates to open
 substitution-fill-table-from-region
 ```
 Creates an aligned org table matching the template substitution table.
-This can be modified and the substitution table updated with the C-c C-c keybinding.
+This can be modified and the substitution table updated with the C-c C-c keybinding. The substitution table will only be updated if the org table is uncommented, which can be done by running C-c-# anywhere in the table.
