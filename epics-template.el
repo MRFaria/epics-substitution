@@ -13,11 +13,43 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(require 'org-table)
-
-
 (defvar epics-template-mode-syntax-table nil)
 (defvar epics-template-mode-highlights nil)
+(defvar device--types '())
+
+(defun find-devices-in-buffer ()
+  ;; Search for macros
+  (goto-char (point-min))
+  (let ((devices '()))
+    (progn
+      (while (re-search-forward
+              "device([[:alnum:]]+,[[:alnum:]_]+,[[:alnum:]_]+,\"\\([[:alnum:] /]+\\)\"")
+        (add-to-list 'devices (match-string-no-properties 1)))
+      devices)))
+
+(defun get-device-types (file)
+  (message file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char 1)
+    (message "getting device types")
+    (find-devices-in-buffer)))
+
+(defun template-get-device-types (dbd-path)
+  (interactive "fSelect dbd file: ")
+  (setq-local device--types
+              (get-device-types dbd-path)))
+
+(defun template-set-device-types ()
+  (interactive)
+  (if (not device--types)
+      (call-interactively 'template-get-device-types))
+
+  (completing-read "Select a template: "
+                                    device--types))
+  
+
+
 
 (setq epics-template-mode-syntax-table
       (let ((synTable (make-syntax-table)))
@@ -29,7 +61,7 @@
 
 (setq epics-template-mode-highlights
       '(
-        ;;horrible to look at, but matches $() or ${} style macros, might separate if it gets worse
+        ;;matches $() or ${} style macros
         ("\\(\\$([a-zA-Z0-9.=_-]+)\\)\\|\\(\\${[a-zA-Z0-9.=_-]+}\\)" 0 font-lock-variable-name-face t)
         ("field" . font-lock-keyword-face)
         ("record" . font-lock-function-name-face)

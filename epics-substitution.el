@@ -16,7 +16,7 @@
 
 (require 'org-table)
 
-(defvar substitution-templates nil)
+(defvar substitution--templates nil)
 (defvar substitution--regex-string
 "file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
 
@@ -130,7 +130,6 @@ nil      When nil, the command tries to be smart and figure out the
 
 
 ;;;###autoload
-;file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).
 (defun substitution-table-convert-file (buffer)
   (interactive "b")
   (set-buffer buffer)
@@ -152,8 +151,7 @@ nil      When nil, the command tries to be smart and figure out the
         (backward-char)
         (setq end (point))
         (substitution-table-convert-region start (point))
-        (goto-char end)
-        ))))
+        (goto-char end)))))
 
 ;;;###autoload
 (defun orgtbl-to-substitution (table params)
@@ -175,15 +173,14 @@ nil      When nil, the command tries to be smart and figure out the
        (concat "{\npattern"
                (orgtbl-to-generic 
                 table (org-combine-plists params2 params)))
-       nil nil 1)
-      )
+       nil nil 1))
      :literal t)))
 
 (defun insert-templates (buffer &optional templates)
   (set-buffer buffer)
   (goto-char (point-min))
   (unless templates
-    (setq templates substitution-templates))
+    (setq templates substitution--templates))
   ;; Search for template includes
   (while (re-search-forward
           ;; Look for includes of .template or .db files
@@ -197,7 +194,7 @@ nil      When nil, the command tries to be smart and figure out the
 (defun read-template-macros (filename);; paths)
   "Read template file and include and return all macros."
   (let ((macros '())
-        (templates substitution-templates))
+        (templates substitution--templates))
     (save-current-buffer
       (with-temp-buffer
         (print (concat "filename " filename) (get-buffer "output2"))
@@ -243,8 +240,7 @@ nil      When nil, the command tries to be smart and figure out the
       (puthash (match-string-no-properties 1)
                (match-string-no-properties 2)
                macros))
-    macros)
-)
+    macros))
 
 (ert-deftest test-get-templates ()
   "Checks that get-templates returns all of the templates"
@@ -254,8 +250,7 @@ nil      When nil, the command tries to be smart and figure out the
     (should (equal (gethash "pmacController.template" (get-templates macros)) "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18/db/pmacController.template"))))
 
 
-(defun get-templates (
-                      macros)
+(defun get-templates (macros)
   "Get the templates in PATH/db where PATH is the value in the hash macros"
   (prin1 macros (get-buffer "*print*"))
   (let ((template-paths (make-hash-table :test 'equal)))
@@ -277,26 +272,26 @@ nil      When nil, the command tries to be smart and figure out the
 
 (defun substitution-get-template-macros (release-path)
   (interactive "fSelect RELEASE file: ")
-  (setq-local substitution-templates
+  (setq-local substitution--templates
               (get-templates (with-temp-buffer
                                (insert-file-contents release-path)
                                (get-macros))))
-  (hash-table-values substitution-templates))
+  (hash-table-values substitution--templates))
 
 (defun substitution-open-template ()
   (interactive)
-  (if (not substitution-templates)
+  (if (not substitution--templates)
       (call-interactively 'substitution-get-template-macros))
   (let* ((template (completing-read "Select a template: "
-                                    substitution-templates))
-         (filename (gethash template substitution-templates)))
+                                    substitution--templates))
+         (filename (gethash template substitution--templates)))
          (switch-to-buffer (find-file-noselect filename))))
 
 
 
 (defun substitution-get-docs-from-template (filename)
   "Look for and return the documentation section of a template"
-  (let ((templates substitution-templates)
+  (let ((templates substitution--templates)
         (docs (concat "# Template: " (file-name-base filename) "\n"))
         (macros (read-template-macros filename)))
     (with-temp-buffer
@@ -316,14 +311,14 @@ nil      When nil, the command tries to be smart and figure out the
 ;;;###autoload
 (defun substitution-table-from-template ()
   (interactive)
-  (if (not substitution-templates)
+  (if (not substitution--templates)
       (call-interactively 'substitution-get-template-macros))
   (let* ((template (completing-read "Select a template: "
-                                    substitution-templates))
+                                    substitution--templates))
          (macros (read-template-macros (gethash template
-                                                substitution-templates))))
+                                                substitution--templates))))
     (insert (substitution-get-docs-from-template
-             (gethash template substitution-templates)))
+             (gethash template substitution--templates)))
     (insert (concat "file " template
                     "\n#+ BEGIN RECEIVE ORGTBL " template
                     "\n#+ END RECEIVE ORGTBL " template
@@ -351,7 +346,7 @@ nil      When nil, the command tries to be smart and figure out the
   (message "Filename match: %s" (match-string-no-properties 1))
   (let* ((template-name (match-string-no-properties 1))
          (macros (read-template-macros
-                  (gethash template-name substitution-templates)))
+                  (gethash template-name substitution--templates)))
          (head-pos 0)
          (last-head-pos 0))
     (message "Macros: %s" (type-of macros))
@@ -370,19 +365,20 @@ nil      When nil, the command tries to be smart and figure out the
 
 
 (defvar epics-substitution-mode-syntax-table nil)
-(defvar my-highlights nil)
+(defvar epics-substitution-mode-highlights nil)
 (setq epics-substitution-mode-syntax-table
       (let ((synTable (make-syntax-table)))
         ;; bash style comment: “# …”
         (modify-syntax-entry ?# "< b" synTable)
         (modify-syntax-entry ?\n "> b" synTable)
         synTable))
-(setq my-highlights
+(setq epics-substitution-mode-highlights
       '(("file\\|pattern" . font-lock-function-name-face)))
 
 ;;;###autoload
 (define-derived-mode epics-substitution-mode fundamental-mode "epics-substitution"
-  (setq font-lock-defaults '(my-highlights))
+  (setq comment-start "#")
+  (setq font-lock-defaults '(epics-substitution-mode-highlights))
   (orgtbl-mode 1)
   (visual-line-mode 0)
   (setq truncate-lines t)
