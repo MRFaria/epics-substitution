@@ -17,7 +17,7 @@
 
 
 (defvar epics-template-mode-syntax-table nil)
-(defvar my-highlights nil)
+(defvar epics-template-mode-highlights nil)
 
 (setq epics-template-mode-syntax-table
       (let ((synTable (make-syntax-table)))
@@ -27,7 +27,7 @@
         (modify-syntax-entry ?$ "'" synTable)
         synTable))
 
-(setq my-highlights
+(setq epics-template-mode-highlights
       '(
         ;;horrible to look at, but matches $() or ${} style macros, might separate if it gets worse
         ("\\(\\$([a-zA-Z0-9.=_-]+)\\)\\|\\(\\${[a-zA-Z0-9.=_-]+}\\)" 0 font-lock-variable-name-face t)
@@ -37,7 +37,7 @@
 
 ;;;###autoload
 (define-derived-mode epics-template-mode fundamental-mode "template"
-  (setq font-lock-defaults '(my-highlights))
+  (setq font-lock-defaults '(epics-template-mode-highlights))
   (visual-line-mode 0)
   (setq truncate-lines t))
 
