@@ -16,11 +16,95 @@
 (require 'org-table)
 
 (defvar substitution-templates nil)
+(defvar substitution--regex-string
+"file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
+
+(defun find-commas (start end)
+  (save-excursion
+    (goto-char start)
+    (let (matches)
+      (while (< (point) end)
+        (cond ((= (char-after) ?,)
+               (push (point) matches)
+               (forward-char))
+              ((looking-at "[]\\[{}()]")
+               (forward-char))
+              (t
+               (forward-sexp))))
+      (nreverse matches))))
+
+;;;###autoload
+(defun substitution-table-convert-region (beg0 end0 &optional separator)
+   ;; This function is only slightly modified code from org-table
+   "Convert region to a table.
+The region goes from BEG0 to END0, but these borders will be moved slightly, 
+to make sure a beginning of line in the first line is included.
+
+SEPARATOR specifies the field separator in the lines.  It can have the following values:
+
+'(4)     Use the comma as a field separator
+'(16)    Use a TAB as field separator
+integer  When a number, use that many spaces as field separator
+nil      When nil, the command tries to be smart and figure out the
+          separator in the following way:
+          - when each line contains a TAB, assume TAB-separated material
+          - when each line contains a comma, assume CSV material
+          - else, assume one or more SPACE characters as separator."
+   (interactive "rP")
+   (unwind-protect
+       (let ((debug-on-error nil))
+         (with-demoted-errors
+             ;; fundamental mode avoids issue
+             ;; with subtitution-mode-comments
+             (fundamental-mode)
+           (let* ((beg (min beg0 end0))
+                  (end (max beg0 end0))
+                  (beg-and-end (setup-table beg end))
+                  re)
+             (setq beg (pop beg-and-end))
+             (setq end (pop beg-and-end))
+             (goto-char beg)
+             (beginning-of-line 1)
+             (setq beg (point-marker))
+             (goto-char end)
+             (if (bolp) (backward-char 1) (end-of-line 1))
+             (setq end (point-marker))
+             ;; Get the right field separator
+             (unless separator
+               (setq separator '(4)))
+             (goto-char beg)
+             ;; Replace commas outside quotes
+             ;; with pipess
+             (setq comma-list (find-commas beg end))
+             (dolist (comma comma-list)
+               (goto-char comma)
+               (delete-char 1)
+               (insert "|"))
+             (goto-char beg)
+             (if (equal separator '(4))
+                 (while (< (point) end)
+                   ;; parse the csv stuff
+                   (cond
+                    ((looking-at "^") (insert "| "))
+                    ((looking-at "[ \t]*$") (replace-match " |") (beginning-of-line 2))
+                    ((looking-at "[^,\n]+") (goto-char (match-end 0)))
+                    ;; moves down one line
+                    (t (beginning-of-line 2)))))
+             (goto-char beg)
+             (org-table-align))
+           (org-table-begin)
+           (org-table-insert-hline)
+           (orgtbl-send-table)
+           (orgtbl-toggle-comment)))
+     ;; On error reverts to epics-substitution-mode
+     (message "error - setting back to epics-substitution-mode")
+     (epics-substitution-mode)))
+
 
 (defun setup-table (beg end)
   (goto-char beg)
-  (re-search-forward "file[[:space:]]+['\"]?\\([a-zA-Z0-9-_]+\\)." end)
-  (let ((name (match-string 1))
+  (re-search-forward substitution--regex-string end)
+  (let ((name (match-string 2))
         (orgtbl-gubbins))
     (end-of-line)
     (goto-char (1+ (point)))
@@ -43,96 +127,32 @@
     (setq end (+ end 4)))
   (list beg end))
 
-;;;###autoload
-(defun substitution-table-convert-region (beg0 end0 &optional separator)
-  ;; This function is only slightly modified code from org-table
-  "Convert region to a table.
-The region goes from BEG0 to END0, but these borders will be moved
-slightly, to make sure a beginning of line in the first line is included.
-
-SEPARATOR specifies the field separator in the lines.  It can have the
-following values:
-
-'(4)     Use the comma as a field separator
-'(16)    Use a TAB as field separator
-integer  When a number, use that many spaces as field separator
-nil      When nil, the command tries to be smart and figure out the
-         separator in the following way:
-         - when each line contains a TAB, assume TAB-separated material
-         - when each line contains a comma, assume CSV material
-         - else, assume one or more SPACE characters as separator."
-  (interactive "rP")
-  (let* ((beg (min beg0 end0))
-         (end (max beg0 end0))
-         (beg-and-end (setup-table beg end))
-         re)
-    (setq beg (pop beg-and-end))
-    (setq end (pop beg-and-end))
-    (goto-char beg)
-    (beginning-of-line 1)
-    (setq beg (point-marker))
-    (goto-char end)
-    (if (bolp) (backward-char 1) (end-of-line 1))
-    (setq end (point-marker))
-    ;; Get the right field separator
-    (unless separator
-      (goto-char beg)
-      (setq separator
-            (cond
-             ((not (re-search-forward "^[^\n\t]+$" end t)) '(16))
-             ((not (re-search-forward "^[^\n,]+$" end t)) '(4))
-             (t 1))))
-    (goto-char beg)
-    (if (equal separator '(4))
-        (while (< (point) end)
-          ;; parse the csv stuff
-          (cond
-           ((looking-at "^") (insert "| "))
-           ((looking-at "[ \t]*$") (replace-match " |") (beginning-of-line 2))
-           ((looking-at "[^,\n]+") (goto-char (match-end 0)))
-           ((looking-at "[ \t]*,") (replace-match " | "))
-           (t (beginning-of-line 2))))
-      (setq re (cond
-                ((equal separator '(4)) "^\\|\"?[ \t]*,[ \t]*\"?")
-                ((equal separator '(16)) "^\\|\t")
-                ((integerp separator)
-                 (if (< separator 1)
-                     (error "Number of spaces in separator must be >= 1")
-                   (format "^ *\\| *\t *\\| \\{%d,\\}" separator)))
-                (t (error "This should not happen"))))
-      (while (re-search-forward re end t)
-        (replace-match "| " t t)))
-    (goto-char beg)
-    (org-table-align))
-  (org-table-begin)
-  (org-table-insert-hline)
-  (orgtbl-send-table)
-  (orgtbl-toggle-comment))
 
 ;;;###autoload
+;file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).
 (defun substitution-table-convert-file (buffer)
   (interactive "b")
   (set-buffer buffer)
   (goto-char (point-min))
   (let (braces start end)
-    (while (re-search-forward "file\\s-*[a-zA-Z0-9-_]+\\.[a-zA-Z]+"
-                              (point-max) t)
-      (beginning-of-line)
-      (setq start (point))
-      (search-forward "{")
-      (setq braces 1) ; Just passed the first brace so start at 1
-      (while (>= braces 1)
-        (if (char-equal (char-after) ?{)
-            (setq braces (1+ braces))
-          (if (char-equal (char-after) ?})
-              (setq braces (- braces 1))))
-        (forward-char)
-        )
-      (backward-char)
-      (setq end (point))
-      (substitution-table-convert-region start (point))
-      (goto-char end)
-      )))
+    (while (re-search-forward substitution--regex-string (point-max) t)
+      (if (org-in-commented-line) () 
+        (beginning-of-line)
+        (setq start (point))
+        (search-forward "{")
+        (setq braces 1) ; Just passed the first brace so start at 1
+        (while (>= braces 1)
+          (if (char-equal (char-after) ?{)
+              (setq braces (1+ braces))
+            (if (char-equal (char-after) ?})
+                (setq braces (- braces 1))))
+          (forward-char)
+          )
+        (backward-char)
+        (setq end (point))
+        (substitution-table-convert-region start (point))
+        (goto-char end)
+        ))))
 
 ;;;###autoload
 (defun orgtbl-to-substitution (table params)
@@ -222,7 +242,8 @@ nil      When nil, the command tries to be smart and figure out the
       (puthash (match-string-no-properties 1)
                (match-string-no-properties 2)
                macros))
-    macros))
+    macros)
+)
 
 (ert-deftest test-get-templates ()
   "Checks that get-templates returns all of the templates"
@@ -231,7 +252,9 @@ nil      When nil, the command tries to be smart and figure out the
     (puthash "TPMAC" "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18" macros)
     (should (equal (gethash "pmacController.template" (get-templates macros)) "/dls_sw/prod/R3.14.12.3/support/tpmac/3-10dls18/db/pmacController.template"))))
 
-(defun get-templates (macros)
+
+(defun get-templates (
+                      macros)
   "Get the templates in PATH/db where PATH is the value in the hash macros"
   (prin1 macros (get-buffer "*print*"))
   (let ((template-paths (make-hash-table :test 'equal)))
@@ -256,7 +279,19 @@ nil      When nil, the command tries to be smart and figure out the
   (setq-local substitution-templates
               (get-templates (with-temp-buffer
                                (insert-file-contents release-path)
-                               (get-macros)))))
+                               (get-macros))))
+  (hash-table-values substitution-templates))
+
+(defun substitution-open-template ()
+  (interactive)
+  (if (not substitution-templates)
+      (call-interactively 'substitution-get-template-macros))
+  (let* ((template (completing-read "Select a template: "
+                                    substitution-templates))
+         (filename (gethash template substitution-templates)))
+         (switch-to-buffer (find-file-noselect filename))))
+
+
 
 (defun substitution-get-docs-from-template (filename)
   "Look for and return the documentation section of a template"
@@ -332,12 +367,24 @@ nil      When nil, the command tries to be smart and figure out the
                         (setq last-head-pos head-pos))))
           macros)))
 
+
+(defvar epics-substitution-mode-syntax-table nil)
+(defvar my-highlights nil)
+(setq epics-substitution-mode-syntax-table
+      (let ((synTable (make-syntax-table)))
+        ;; bash style comment: “# …”
+        (modify-syntax-entry ?# "< b" synTable)
+        (modify-syntax-entry ?\n "> b" synTable)
+        synTable))
+(setq my-highlights
+      '(("file\\|pattern" . font-lock-function-name-face)))
+
 ;;;###autoload
-(define-derived-mode epics-substitution-mode fundamental-mode
-  (setq comment-start "#")
-  (orgtbl-mode)
+(define-derived-mode epics-substitution-mode fundamental-mode "epics-substitution"
+  (setq font-lock-defaults '(my-highlights))
+  (orgtbl-mode 1)
   (visual-line-mode 0)
   (setq truncate-lines t)
-  (setq mode-name "epics-substitution"))
+  (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment))
 
 (provide 'epics-substitution)
