@@ -5,31 +5,15 @@
 (defun find-char (start end char)
   (interactive "r")
   (print "test")
-  (save-excursion
-    (goto-char start)
-    (let (matches)
-      (while (< (point) end)
-        (cond ((= (char-after) char)
-               (push (point) matches)
-               (forward-char))
-              ((looking-at "\"")
-               (forward-sexp))
-              (t
-               (forward-char))))
-      (nreverse matches))))
-
-;; (defun find-char (start end)
-;;   (interactive "r")
-;;   (print "test")
-;;   (save-excursion
-;;     (goto-char start)
-;;     (let (matches)
-;;       (while (< (point) end)
-;;         (if (= (char-after) ?,)
-;;             (if (nth 3 (syntax-ppss (point))) (progn (print (point)) (push (point) matches))))
-;;         (forward-char))
-;;       (print matches)
-;;       (nreverse matches))))
+  (goto-char start)
+  (let (matches)
+    (while (< (point) end)
+      (if (equal (char-after) char)
+          (if (nth 3 (syntax-ppss (point)))
+              (print "in string")
+            (push (point) matches)))
+      (forward-char))
+    (nreverse matches)))
 
 (defun replace-chars (beg end sep char)
   (interactive "r")
@@ -40,19 +24,20 @@
       (delete-char 1)
       (insert sep))))
 
+
 (defun just-one-space-in-region (start end)
   "replace all whitespace before and after separator"
   (interactive "r")
   (goto-char start)
+  (catch 'exit-function
     (while (< (point) end)
-      (cond ((equal (char-after) ?,)
-             (just-one-space)
-             (forward-char)
-             (just-one-space))
-            ((looking-at "\"")
-             (forward-sexp))
-            (t
-             (forward-char)))))
+      (if (equal (char-after) ?,)
+          (if (nth 3 (syntax-ppss (point)))
+              (print "in string")
+            (just-one-space) (forward-char) (just-one-space) (forward-char -2)))
+      (condition-case nil
+          (forward-char)
+        (error (throw 'exit-function t))))))
 
 (defun format-table (beg end)
   (interactive "r")
@@ -99,10 +84,10 @@
     (save-excursion
       (save-restriction
         (narrow-to-region beg end)
-        (print "1")
         (format-table (point-min) (point-max))
-        (print "2")
-        (align-regexp (+ (point-min) 2) (point-max) "\\(\\s-*\\){" 1 4 1)
+        (goto-char (point-min))
+        (search-forward "pattern" (point-max))
+        (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 4 1)
         (print "3")
         (just-one-space-in-region (point-min) (point-max))
         (print "4")
