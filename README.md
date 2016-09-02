@@ -5,12 +5,14 @@ Copy the epics-substitution elisp files into your .emacs.d directory, which shou
 
 epics-substitution depends on org-mode which is part of recent distributions of GNU Emacs
 
-Add the files to be automatically loaded
+In your ~/.emacs.d/init.el file add the following:
+
+1) To load the files automatically when needed
 ```elisp
 (autoload 'epics-substitution-mode "epics-substitution.el" "" t)
 (autoload 'epics-template-mode "epics-template.el" "" t)
 ```
-Add some hooks to set the modes depending on file type
+2) To set the relevant modes by type
 ```elisp
 (add-to-list 'auto-mode-alist '("\\.substitutions\\'" . epics-substitution-mode))
 (add-to-list 'auto-mode-alist '("\\.\\(db\\|template\\)\\'" . epics-template-mode))

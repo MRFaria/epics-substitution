@@ -53,8 +53,8 @@ nil      When nil, the command tries to be smart and figure out the
           - else, assume one or more SPACE characters as separator."
    (interactive "rP")
    (unwind-protect
-       (let ((debug-on-error nil))
-         (with-demoted-errors
+       (let ((debug-on-error t) (comma-list nil))
+         (with-demoted-errors "Error: %S"
              ;; fundamental mode avoids issue
              ;; with subtitution-mode-comments
              (fundamental-mode)
@@ -84,7 +84,6 @@ nil      When nil, the command tries to be smart and figure out the
              (goto-char beg)
              (if (equal separator '(4))
                  (while (< (point) end)
-                   ;; parse the csv stuff
                    (cond
                     ((looking-at "^") (insert "| "))
                     ((looking-at "[ \t]*$") (replace-match " |") (beginning-of-line 2))
@@ -97,9 +96,9 @@ nil      When nil, the command tries to be smart and figure out the
            (org-table-insert-hline)
            (orgtbl-send-table)
            (orgtbl-toggle-comment)))
-     ;; On error reverts to epics-substitution-mode
-     (message "error - setting back to epics-substitution-mode")
-     (epics-substitution-mode)))
+         
+         ;; This always runs, even when errors occur above
+         (epics-substitution-mode)))
 
 
 (defun setup-table (beg end)
@@ -193,6 +192,7 @@ nil      When nil, the command tries to be smart and figure out the
 
 (defun read-template-macros (filename);; paths)
   "Read template file and include and return all macros."
+  (message "got here")
   (let ((macros '())
         (templates substitution--templates))
     (save-current-buffer
@@ -207,8 +207,8 @@ nil      When nil, the command tries to be smart and figure out the
           (add-to-list 'macros (match-string-no-properties 1) t))
         (goto-char (point-min))
         (while (re-search-forward "$(\\([A-Za-z_]*\\))" nil t)
-          (add-to-list 'macros (match-string-no-properties 1) t))))
-    macros))
+          (add-to-list 'macros (match-string-no-properties 1) t)))
+    macros)))
 
 (defun remove-comments ()
   (save-excursion
@@ -334,6 +334,7 @@ nil      When nil, the command tries to be smart and figure out the
         (org-table-delete-column))))
   (org-table-align))
 
+
 ;;;###autoload
 (defun substitution-fill-from-region (beg end)
   "Look for the specified template and fill in any defined variables"
@@ -342,7 +343,8 @@ nil      When nil, the command tries to be smart and figure out the
   (orgtbl-toggle-comment)
   (goto-char (org-table-begin))
   (save-excursion
-    (re-search-backward "file \\([-_a-zA-Z0-9]+\\(?:\\.template\\|\\.db\\)\\)"))
+    (re-search-backward
+     "file \\([-_a-zA-Z0-9]+\\(?:\\.template\\|\\.db\\)\\)"))
   (message "Filename match: %s" (match-string-no-properties 1))
   (let* ((template-name (match-string-no-properties 1))
          (macros (read-template-macros
@@ -350,7 +352,7 @@ nil      When nil, the command tries to be smart and figure out the
          (head-pos 0)
          (last-head-pos 0))
     (message "Macros: %s" (type-of macros))
-    (mapc 'list (lambda (heading)
+    (mapc (lambda (heading)
                   (message "Heading: %s" heading)
                   (save-excursion
                     (unless (setq head-pos
@@ -361,7 +363,7 @@ nil      When nil, the command tries to be smart and figure out the
                       (insert heading))
                     (if head-pos
                         (setq last-head-pos head-pos))))
-          macros)))
+          'macros)))
 
 
 (defvar epics-substitution-mode-syntax-table nil)
