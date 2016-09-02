@@ -3,6 +3,7 @@
   "file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
 
 (defun find-char (start end char)
+  "looks for characters outside of strings"
   (interactive "r")
   (print "test")
   (goto-char start)
@@ -16,6 +17,7 @@
     (nreverse matches)))
 
 (defun replace-chars (beg end sep char)
+  "replaces characters given a list of positions"
   (interactive "r")
   (let ((char-list (find-char beg end char)))
     (print char-list)
@@ -40,6 +42,7 @@
         (error (throw 'exit-function t))))))
 
 (defun format-table (beg end)
+  "formats table layour to keep a constant look"
   (interactive "r")
   (goto-char beg)
   (cond ((search-forward-regexp "pattern[ ]?+{" end t )
@@ -53,6 +56,7 @@
            (print "bad-table"))))
   
 (defun align-table (beg end)
+  "aligns table based on comma separator"
   (interactive "r")
   (save-excursion
    (save-restriction
@@ -63,6 +67,7 @@
       (replace-chars (point-min) (point-max)"," ?|)) ))
 
 (defun getbounds ()
+  "finds bounds of substitution table"
   (interactive)
   (beginning-of-line)
   (let ((start nil)
@@ -74,6 +79,7 @@
     (cl-values start end)))
 
 (defun substitution-align-table ()
+  "align table given point is in substitution table starting line"
   (interactive)
   (let ((bounds nil)
         (beg nil)
@@ -93,6 +99,72 @@
         (print "4")
         (align-table (point-min) (point-max))
         ))))
+
+
+;;new stuff
+(defun substitution-get-template-macros (release-path)
+  (interactive "fSelect RELEASE file: ")
+  (setq-local substitution--templates
+              (get-templates (with-temp-buffer
+                               (insert-file-contents release-path)
+                               (get-macros))))
+  (hash-table-values substitution--templates))
+
+(defun read-template-macros (filename);; paths)
+  "Read template file and include and return all macros."
+  (message "got here")
+  (let ((macros '())
+        (templates substitution--templates))
+    (save-current-buffer
+      (with-temp-buffer
+        (print (concat "filename " filename) (get-buffer "output2"))
+        (insert-file-contents filename)
+        (insert-templates (current-buffer) templates)
+        (goto-char (point-min))
+        (while (re-search-forward
+                "#[[:blank:]]*%[[:blank:]]*macro,[[:blank:]]*\\([_[:word:]]+\\)"
+                nil t)
+          (add-to-list 'macros (match-string-no-properties 1) t))
+        (goto-char (point-min))
+        (while (re-search-forward "$(\\([A-Za-z_]*\\))" nil t)
+          (add-to-list 'macros (match-string-no-properties 1) t)))
+    macros)))
+
+(defun substitution-get-docs-from-template (filename)
+  "Look for and return the documentation section of a template"
+  (let ((templates substitution--templates)
+        (docs (concat "# Template: " (file-name-base filename) "\n"))
+        (macros (read-template-macros filename)))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (insert "\n")
+      (insert-templates (current-buffer) templates)
+      (goto-char (point-min))
+      (mapc (lambda (macro)
+              (save-excursion
+                (if (re-search-forward (concat "# *% *macro, *" macro) nil t)
+                    (setq docs
+                          (concat docs (buffer-substring-no-properties
+                                        (point-at-bol) (point-at-eol)) "\n")))))
+            macros)
+      (concat docs "\n"))))
+
+(defun substitution-table-from-template ()
+  (interactive)
+  (if (not substitution--templates)
+      (call-interactively 'substitution-get-template-macros))
+  (let* ((template (completing-read "Select a template: "
+                                    substitution--templates))
+         (macros (read-template-macros (gethash template
+                                                substitution--templates))))
+    (insert (substitution-get-docs-from-template
+             (gethash template substitution--templates)))
+    (insert (concat "file " template
+                    "\n{"
+                    "\npattern"
+                    "\n\n"))
+    ;(insert-template)
+    (insert "}")))
 
 
   
