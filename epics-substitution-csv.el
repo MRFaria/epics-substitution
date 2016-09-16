@@ -101,6 +101,14 @@
         ))))
 
 
+;;do a thing to count the number of commas in the headings
+;;this will allow to move table to next line when 
+;;do a thing to align the table with a shortcut from anywhere in the table by going up
+;;a sexp expression C-M-u (end of line as well)
+
+
+
+
 ;;new stuff
 (defun substitution-get-template-macros (release-path)
   (interactive "fSelect RELEASE file: ")
@@ -148,6 +156,15 @@
                                         (point-at-bol) (point-at-eol)) "\n")))))
             macros)
       (concat docs "\n"))))
+
+
+;; (defun insert-template (macros)
+;;   (dolist (heading macros)
+;;     (if (not (equal (compare-strings heading 0 2 "__" nil nil) t))
+;;         (progn (insert heading)
+               
+;;     )
+;;   )
 
 (defun substitution-table-from-template ()
   (interactive)

@@ -18,10 +18,77 @@
 
 (defvar substitution--templates nil)
 (defvar substitution--regex-string
-"file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
+  "file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
+
+(defun org-table-convert-on-the-spot (&optional format)
+;  (interactive)
+  (unless (org-at-table-p) (user-error "No table at point"))
+  (org-table-align) ;; make sure we have everything we need
+  (let* ((beg (org-table-begin))
+         (end (org-table-end))
+         (txt (buffer-substring-no-properties beg end))
+         (formats '("orgtbl-to-substitution"))
+         (format (or format
+                     (org-entry-get beg "TABLE_EXPORT_FORMAT" t)))
+         buf deffmt-readable)
+    (unless format
+      (setq deffmt-readable
+            org-table-export-default-format)
+      (while (string-match "\t" deffmt-readable)
+        (setq deffmt-readable (replace-match "\\t" t t deffmt-readable)))
+      (while (string-match "\n" deffmt-readable)
+        (setq deffmt-readable (replace-match "\\n" t t deffmt-readable)))
+      (setq format "orgtbl-to-substitution"));(org-completing-read "Format: " formats nil nil deffmt-readable)))
+    (if (string-match "\\([^ \t\r\n]+\\)\\( +.*\\)?" format)
+        (let* ((transform (intern (match-string 1 format)))
+               (params (if (match-end 2)
+                           (read (concat "(" (match-string 2 format) ")"))))
+               (skip (plist-get params :skip))
+               (skipcols (plist-get params :skipcols))
+               (lines (nthcdr (or skip 0) (org-split-string txt "[ \t]*\n[ \t]*")))
+               (lines (org-table-clean-before-export lines))
+               (i0 (if org-table-clean-did-remove-column 2 1))
+               (table (mapcar
+                       (lambda (x)
+                         (if (string-match org-table-hline-regexp x)
+                             'hline
+                           (org-remove-by-index
+                            (org-split-string (org-trim x) "\\s-*|\\s-*")
+                            skipcols i0)))
+                       lines))
+               (fun (if (= i0 2) 'cdr 'identity))
+               (org-table-last-alignment
+                (org-remove-by-index (funcall fun org-table-last-alignment)
+                                     skipcols i0))
+               (org-table-last-column-widths
+                (org-remove-by-index (funcall fun org-table-last-column-widths)
+                                     skipcols i0)))
+
+          (unless (fboundp transform)
+            (user-error "No such transformation function %s" transform))
+          (setq txt (funcall transform table params))
+
+          (delete-region beg end)
+          (let ((beg (point))
+                (end nil))
+            (insert txt "\n")
+            (setq end (point))
+            (save-excursion
+              (save-restriction
+                ;this code is repeated, fix
+                (narrow-to-region beg end)
+                (align-regexp beg (point-max) "\\(\\s-*\\){" 1 3 1)
+                (just-one-space-in-region (point-min) (point-max))
+                (align-table (point-min) (point-max))))
+            (goto-char beg))
+
+          (message "Export done."))
+      (user-error "TABLE_EXPORT_FORMAT invalid"))))
+
+
 
 (defun find-commas (start end)
-  (save-excursion
+   (save-excursion
     (goto-char start)
     (let (matches)
       (while (< (point) end)
@@ -33,6 +100,144 @@
               (t
                (forward-sexp))))
       (nreverse matches))))
+
+(defun find-char (start end char)
+  "looks for characters outside of strings"
+  (interactive "r")
+  (print "test")
+  (goto-char start)
+  (let (matches)
+    (while (< (point) end)
+      (if (equal (char-after) char)
+          (if (nth 3 (syntax-ppss (point)))
+              (print "in string")
+            (push (point) matches)))
+      (forward-char))
+    (nreverse matches)))
+
+(defun replace-chars (beg end sep char)
+  "replaces characters given a list of positions"
+  (interactive "r")
+  (let ((char-list (find-char beg end char)))
+    (print char-list)
+    (dolist (point char-list)
+      (goto-char point)
+      (delete-char 1)
+      (insert sep))))
+
+
+(defun just-one-space-in-region (start end)
+  "replace all whitespace before and after separator"
+  (interactive "r")
+  (goto-char start)
+  (catch 'exit-function
+    (while (< (point) end)
+      (if (equal (char-after) ?,)
+          (if (nth 3 (syntax-ppss (point)))
+              (print "in string")
+            (just-one-space) (forward-char) (just-one-space) (forward-char -2)))
+      (condition-case nil
+          (forward-char)
+        (error (throw 'exit-function t))))))
+
+(defun format-table (beg end)
+  "formats table layour to keep a constant look"
+  (interactive "r")
+  (goto-char beg)
+  (cond ((search-forward-regexp "pattern[ ]?+{" end t )
+           (forward-char -1)
+           (insert-char ?\n)
+           (insert-tab))
+          
+          ((search-forward-regexp "pattern[ ]?+\n[ ]?+{" end t)
+           '(nil))
+          ((t)
+           (print "bad-table"))))
+
+(defun convert-substitution-to-table ()
+  (interactive)
+  (move-end-of-line 0)
+  (backward-up-list)
+  (let ((beg (point))
+        (end (forward-list))
+        (beg-table nil))
+    (print end)
+    (save-excursion
+      (save-restriction
+        (narrow-to-region beg end)
+        (goto-char (point-min))
+        (re-search-forward "pattern" (point-max) t)
+        (forward-line 1)
+        (setq beg-table (point))
+        (save-excursion
+          (save-restriction
+            (narrow-to-region (point) (- (point-max) 1))
+            (replace-chars (point-min) (point-max) "|" ?,)
+            (goto-char (point-min))
+            (while (re-search-forward "{\\|}" (point-max) t)
+              (replace-match "|"))
+            (replace-chars (point-min) (point-max) "|" ?,)))))
+    (goto-char beg-table)))
+;        (replace-chars (point-min) (point-max) "}" ?|)
+ ;       (replace-chars (point-min) (point-max) "," ?|)))))
+
+(defun align-table (beg end)
+  "aligns table based on comma separator"
+  (interactive "r")
+  (save-excursion
+   (save-restriction
+     (narrow-to-region beg end)
+     (goto-char (point-min))
+     (replace-chars (point-min) (point-max) "|" ?,)
+     (align-regexp (point-min) (point-max) "\\(\\s-*\\)|" 1 1 1)
+     (replace-chars (point-min) (point-max)"," ?|)) ))
+
+
+; make this convert the whole file 
+(defun getbounds ()
+  "finds bounds of substitution table"
+  (interactive)
+  (beginning-of-line)
+  (let ((start nil)
+        (end nil))
+    (search-forward-regexp "\\.template\\|\\.db" (line-end-position))
+    (setq start (point))
+    (forward-sexp)
+    (setq end (point))
+    (cl-values start end)))
+
+(defun substitution-align-table ()
+  "align table given point is in substitution table starting line"
+  (interactive)
+  (let ((bounds nil)
+        (beg nil)
+        (end nil))
+    (setq bounds (getbounds))
+    (setq beg (car bounds))
+    (setq end (car (cdr bounds)))
+    (save-excursion
+      (save-restriction
+        (narrow-to-region beg end)
+        (format-table (point-min) (point-max))
+        (goto-char (point-min))
+        (search-forward "pattern" (point-max))
+        (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 3 1)
+        (just-one-space-in-region (point-min) (point-max))
+        (align-table (point-min) (point-max))
+        ))))
+;; (defun find-commas (start end)
+;;   (save-excursion
+;;     (goto-char start)
+;;     (let (matches)
+;;       (while (< (point) end)
+;;         (cond ((= (char-after) ?,)
+;;                (push (point) matches)
+;;                (forward-char))
+;;               ((looking-at "[]\\[{}()]")
+;;                (forward-char))
+;;               (t
+;;                (forward-sexp))))
+;;       (nreverse matches))))
 
 ;;;###autoload
 (defun substitution-table-convert-region (beg0 end0 &optional separator)
@@ -158,6 +363,28 @@ nil      When nil, the command tries to be smart and figure out the
   (let* ((params2
           (list
            :no-escape t
+           :lstart " {"
+           :lend "}"
+           :sep ", ")))
+    ;; Convert \vert to | and put "" in blank cells
+    (replace-regexp-in-string
+     "\\\\vert" "|"
+     (replace-regexp-in-string
+      ", }" ", \"\"}"
+      (replace-regexp-in-string
+       "\\( ,\\)" " \"\","
+       (concat 
+               (orgtbl-to-generic 
+                table (org-combine-plists params2 params)))
+       nil nil 1))
+     :literal t)))
+
+;;;###autoload
+(defun orgtbl-to-substitution-old (table params)
+  "Convert the Orgtbl mode TABLE to substitution file syntax."
+  (let* ((params2
+          (list
+           :no-escape t
            :tend "}"
            :lstart " {"
            :lend "}"
@@ -169,7 +396,7 @@ nil      When nil, the command tries to be smart and figure out the
       ", }" ", \"\"}"
       (replace-regexp-in-string
        "\\( ,\\)" " \"\","
-       (concat "{\npattern"
+       (concat "{\npattern\n"
                (orgtbl-to-generic 
                 table (org-combine-plists params2 params)))
        nil nil 1))
@@ -309,7 +536,7 @@ nil      When nil, the command tries to be smart and figure out the
       (concat docs "\n"))))
 
 ;;;###autoload
-(defun substitution-table-from-template ()
+(defun substitution-table-from-template-old ()
   (interactive)
   (if (not substitution--templates)
       (call-interactively 'substitution-get-template-macros))
@@ -323,7 +550,34 @@ nil      When nil, the command tries to be smart and figure out the
                     "\n#+ BEGIN RECEIVE ORGTBL " template
                     "\n#+ END RECEIVE ORGTBL " template
                     "\n\n#+ORGTBL: SEND " template
-                    " orgtbl-to-substitution :no-escape t\n"))
+                    " orgtbl-to-substitution-old :no-escape t\n"))
+    (org-table-create (concat
+                       (number-to-string (length macros)) "x2"))
+    (forward-char)
+    (dolist (heading macros)
+      (if (not (equal (compare-strings heading 0 2 "__" nil nil) t))
+          (progn (insert heading)
+                 (org-table-next-field))
+        (org-table-delete-column))))
+  (org-table-align)
+  (org-table-delete-column))
+
+(defun substitution-table-from-template ()
+  (interactive)
+  (if (not substitution--templates)
+      (call-interactively 'substitution-get-template-macros))
+  (let* ((template (completing-read "Select a template: "
+                                    substitution--templates))
+         (macros (read-template-macros (gethash template
+                                                substitution--templates))))
+    (insert (substitution-get-docs-from-template
+             (gethash template substitution--templates)))
+    (insert (concat "file " template
+                    "\n{\n"
+                    "pattern\n"
+                    "}"
+                    ))
+    (beginning-of-line)
     (org-table-create (concat
                        (number-to-string (length macros)) "x2"))
     (forward-char)
@@ -366,6 +620,12 @@ nil      When nil, the command tries to be smart and figure out the
           'macros)))
 
 
+(defun substitution-convert-table ()
+  (interactive)
+  (if (org-at-table-p)
+      (org-table-convert-on-the-spot)
+    (convert-substitution-to-table)))
+
 (defvar epics-substitution-mode-syntax-table nil)
 (defvar epics-substitution-mode-highlights nil)
 (setq epics-substitution-mode-syntax-table
@@ -384,6 +644,7 @@ nil      When nil, the command tries to be smart and figure out the
   (orgtbl-mode 1)
   (visual-line-mode 0)
   (setq truncate-lines t)
-  (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment))
+  (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment)
+  (global-set-key (kbd "C-c C-f") 'substitution-convert-table))
 
 (provide 'epics-substitution)
