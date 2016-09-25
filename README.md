@@ -1,6 +1,3 @@
-# MOVED TO GITHUB
-https://github.com/MRFaria/epics-substitution
-
 # epics-substitution
 
 ## Installation
