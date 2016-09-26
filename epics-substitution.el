@@ -128,7 +128,7 @@
           
           ((search-forward-regexp "pattern[ ]?+\n[ ]?+{" end t)
            '(nil))
-          ((t)
+          (t
            (print "bad-table"))))
 
 (defun convert-substitution-to-table ()
@@ -384,43 +384,21 @@
         (org-table-delete-column))))
   (org-table-align))
 
-
-;;;###autoload
-(defun substitution-fill-from-region (beg end)
-  "Look for the specified template and fill in any defined variables"
-  (interactive "r")
-  (substitution-table-convert-region beg end)
-  (orgtbl-toggle-comment)
-  (goto-char (org-table-begin))
-  (save-excursion
-    (re-search-backward
-     "file \\([-_a-zA-Z0-9]+\\(?:\\.template\\|\\.db\\)\\)"))
-  (message "Filename match: %s" (match-string-no-properties 1))
-  (let* ((template-name (match-string-no-properties 1))
-         (macros (read-template-macros
-                  (gethash template-name substitution--templates)))
-         (head-pos 0)
-         (last-head-pos 0))
-    (message "Macros: %s" (type-of macros))
-    (mapc (lambda (heading)
-                  (message "Heading: %s" heading)
-                  (save-excursion
-                    (unless (setq head-pos
-                                  (re-search-forward (concat "| *" heading " *|") (point-at-eol) t))
-                      (message "last-head-pos: %s" last-head-pos)
-                      (goto-char (1+ last-head-pos))
-                      (org-table-insert-column)
-                      (insert heading))
-                    (if head-pos
-                        (setq last-head-pos head-pos))))
-          'macros)))
-
-
 (defun substitution-convert-table ()
   (interactive)
   (if (org-at-table-p)
       (org-table-convert-on-the-spot)
     (convert-substitution-to-table)))
+
+(defun substitution-align-file ()                                 
+  (interactive)                                                   
+  "align tables throughout the file"                              
+  (goto-char (point-min))                                         
+  (while (< (point) (point-max))                                  
+    (search-forward-regexp "\\.template\\|\\.db" (point-max) t )  
+    (if (or (nth 4 (syntax-ppss)) (looking-at "#"))               
+        'nil                                                      
+      (substitution-align-table))))                               
 
 (defvar epics-substitution-mode-syntax-table nil)
 (defvar epics-substitution-mode-highlights nil)
