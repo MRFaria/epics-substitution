@@ -305,7 +305,9 @@
   (prin1 macros (get-buffer "*print*"))
   (let ((template-paths (make-hash-table :test 'equal)))
     (maphash (lambda (key value)
-               (let ((db-path (concat value "/db/")))
+               (let ((db-path (if (string= value default-directory)
+                                  default-directory
+                                (concat value "/db/"))))
                  ;; If the db-path exists add all of the templates in it
                  ;; to the template-paths hash
                  (if (file-directory-p db-path)
@@ -325,7 +327,9 @@
   (setq-local substitution--templates
               (get-templates (with-temp-buffer
                                (insert-file-contents release-path)
-                               (get-macros))))
+                               (let ((macros (get-macros)))
+                                 (puthash "THISIOC" default-directory macros)
+                                 macros))))
   (hash-table-values substitution--templates))
 
 (defun substitution-open-template ()
