@@ -164,15 +164,17 @@
  ;       (replace-chars (point-min) (point-max) "," ?|)))))
 
 (defun align-table (beg end)
-  "aligns table based on comma separator"
+  "aligns the substitution table 
+  This uses the ¦ character to align the table, as sometimes there are commas in the table 
+  fields"
   (interactive "r")
   (save-excursion
    (save-restriction
      (narrow-to-region beg end)
      (goto-char (point-min))
-     (replace-chars (point-min) (point-max) "|" ?,)
-     (align-regexp (point-min) (point-max) "\\(\\s-*\\)|" 1 1 1)
-     (replace-chars (point-min) (point-max)"," ?|)) ))
+     (replace-chars (point-min) (point-max) "¦" ?,)
+     (align-regexp (point-min) (point-max) "\\(\\s-*\\)¦" 1 1 1)
+     (replace-chars (point-min) (point-max)"," ?¦))))
 
 
 ; make this convert the whole file 
@@ -441,7 +443,7 @@
   (setq comment-start "#")
   (setq font-lock-defaults '(epics-substitution-mode-highlights))
   (orgtbl-mode 1)
-  (visual-line-mode 1)
+  (visual-line-mode 0)
   (setq truncate-lines t)
   (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment)
   (local-set-key (kbd "C-c C-f") 'substitution-convert-table)
