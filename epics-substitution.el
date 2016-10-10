@@ -149,11 +149,16 @@
         (save-excursion
           (save-restriction
             (narrow-to-region (point) (- (point-max) 1))
+            (goto-char (point-min))
+            ;escape pipes that already exist in the table
+            (while (re-search-forward "|" (point-max) t)
+              (replace-match "\\\\vert"))
+            ;convert commas to pipes
             (replace-chars (point-min) (point-max) "|" ?,)
             (goto-char (point-min))
             (while (re-search-forward "{\\|}" (point-max) t)
-              (replace-match "|"))
-            (replace-chars (point-min) (point-max) "|" ?,)))))
+              (replace-match "|"))))))
+
     (goto-char beg-table)))
 ;        (replace-chars (point-min) (point-max) "}" ?|)
  ;       (replace-chars (point-min) (point-max) "," ?|)))))
@@ -208,9 +213,9 @@
   "Convert the Orgtbl mode TABLE to substitution file syntax."
   (let* ((params2
           (list
-           :no-escape t
-           :lstart " {"
-           :lend "}"
+           ;:no-escape t
+           :lstart " { "
+           :lend " }"
            :sep ", ")))
     ;; Convert \vert to | and put "" in blank cells
     (replace-regexp-in-string
@@ -436,7 +441,7 @@
   (setq comment-start "#")
   (setq font-lock-defaults '(epics-substitution-mode-highlights))
   (orgtbl-mode 1)
-  (visual-line-mode 0)
+  (visual-line-mode 1)
   (setq truncate-lines t)
   (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment)
   (local-set-key (kbd "C-c C-f") 'substitution-convert-table)
