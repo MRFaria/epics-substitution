@@ -35,8 +35,15 @@ substitution-open-template
 prompts for a configure/RELEASE file and displays a list
 of available templates to open
 
+The following keybindings are set by epics-substitution-mode:
 ```elisp
-substitution-fill-table-from-region
+   (local-set-key (kbd "C-c C-f") 'substitution-convert-table)
+   (local-set-key (kbd "M-n") 'scroll-template-down)
+   (local-set-key (kbd "M-p") 'scroll-template-up))
 ```
-Creates an aligned org table matching the template substitution table.
-This can be modified and the substitution table updated with the C-c C-c keybinding. The substitution table will only be updated if the org table is uncommented, which can be done by running C-c-# anywhere in the table.
+
+To align an existing table run:
+```elisp
+substitution-align-table
+```
+in the first line of the table
