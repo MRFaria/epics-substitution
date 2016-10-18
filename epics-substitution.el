@@ -444,7 +444,7 @@
   (setq font-lock-defaults '(epics-substitution-mode-highlights))
   (orgtbl-mode 1)
   (visual-line-mode 0)
-  (setq truncate-lines t)
+  (setq truncate-lines nil)
   (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment)
   (local-set-key (kbd "C-c C-f") 'substitution-convert-table)
   (local-set-key (kbd "M-n") 'scroll-template-down)
