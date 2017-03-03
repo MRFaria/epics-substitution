@@ -40,29 +40,13 @@
         (setq deffmt-readable (replace-match "\\n" t t deffmt-readable)))
       (setq format "orgtbl-to-substitution"));(org-completing-read "Format: " formats nil nil deffmt-readable)))
     (if (string-match "\\([^ \t\r\n]+\\)\\( +.*\\)?" format)
-        (let* ((transform (intern (match-string 1 format)))
-               (params (if (match-end 2)
-                           (read (concat "(" (match-string 2 format) ")"))))
-               (skip (plist-get params :skip))
-               (skipcols (plist-get params :skipcols))
-               (lines (nthcdr (or skip 0) (org-split-string txt "[ \t]*\n[ \t]*")))
-               (lines (org-table-clean-before-export lines))
-               (i0 (if org-table-clean-did-remove-column 2 1))
-               (table (mapcar
-                       (lambda (x)
-                         (if (string-match org-table-hline-regexp x)
-                             'hline
-                           (org-remove-by-index
-                            (org-split-string (org-trim x) "\\s-*|\\s-*")
-                            skipcols i0)))
-                       lines))
-               (fun (if (= i0 2) 'cdr 'identity))
-               (org-table-last-alignment
-                (org-remove-by-index (funcall fun org-table-last-alignment)
-                                     skipcols i0))
-               (org-table-last-column-widths
-                (org-remove-by-index (funcall fun org-table-last-column-widths)
-                                     skipcols i0)))
+        (let
+            ((transform (intern (match-string 1 format)))
+             (params (and (match-end 2)
+                          (read (concat "(" (match-string 2 format) ")"))))
+             (table (org-table-to-lisp
+                     (buffer-substring-no-properties
+                      (org-table-begin) (org-table-end)))))
 
           (unless (fboundp transform)
             (user-error "No such transformation function %s" transform))
@@ -125,7 +109,7 @@
            (forward-char -1)
            (insert-char ?\n)
            (insert-tab))
-          
+
           ((search-forward-regexp "pattern[ ]?+\n[ ]?+{" end t)
            '(nil))
           (t
@@ -164,8 +148,8 @@
  ;       (replace-chars (point-min) (point-max) "," ?|)))))
 
 (defun align-table (beg end)
-  "aligns the substitution table 
-  This uses the ¦ character to align the table, as sometimes there are commas in the table 
+  "aligns the substitution table
+  This uses the ¦ character to align the table, as sometimes there are commas in the table
   fields"
   (interactive "r")
   (save-excursion
@@ -177,7 +161,7 @@
      (replace-chars (point-min) (point-max)"," ?¦))))
 
 
-; make this convert the whole file 
+; make this convert the whole file
 (defun getbounds ()
   "finds bounds of substitution table"
   (interactive)
@@ -226,8 +210,8 @@
       ", }" ", \"\"}"
       ;; (replace-regexp-in-string
       ;;  "\\( ,\\)" " \"\","
-       (concat 
-               (orgtbl-to-generic 
+       (concat
+               (orgtbl-to-generic
                 table (org-combine-plists params2 params)))
        nil nil 1)
      :literal t)))
@@ -401,15 +385,15 @@
       (org-table-convert-on-the-spot)
     (convert-substitution-to-table)))
 
-(defun substitution-align-file ()                                 
-  (interactive)                                                   
-  "align tables throughout the file"                              
-  (goto-char (point-min))                                         
-  (while (< (point) (point-max))                                  
-    (search-forward-regexp "\\.template\\|\\.db" (point-max) t )  
-    (if (or (nth 4 (syntax-ppss)) (looking-at "#"))               
-        'nil                                                      
-      (substitution-align-table))))                               
+(defun substitution-align-file ()
+  (interactive)
+  "align tables throughout the file"
+  (goto-char (point-min))
+  (while (< (point) (point-max))
+    (search-forward-regexp "\\.template\\|\\.db" (point-max) t )
+    (if (or (nth 4 (syntax-ppss)) (looking-at "#"))
+        'nil
+      (substitution-align-table))))
 
 (defvar epics-substitution-mode-syntax-table nil)
 (defvar epics-substitution-mode-highlights nil)
@@ -436,15 +420,13 @@
       (end-of-line nil))
   (search-forward "file" (point-max) t)
   (move-beginning-of-line nil))
-  
+
 
 ;;;###autoload
 (define-derived-mode epics-substitution-mode fundamental-mode "epics-substitution"
   (setq comment-start "#")
   (setq font-lock-defaults '(epics-substitution-mode-highlights))
   (orgtbl-mode 1)
-  (visual-line-mode 0)
-  (setq truncate-lines nil)
   (local-set-key (kbd "C-c #") 'orgtbl-toggle-comment)
   (local-set-key (kbd "C-c C-f") 'substitution-convert-table)
   (local-set-key (kbd "M-n") 'scroll-template-down)
