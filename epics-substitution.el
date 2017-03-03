@@ -433,3 +433,8 @@
   (local-set-key (kbd "M-p") 'scroll-template-up))
 
 (provide 'epics-substitution)
+
+(add-to-list 'auto-mode-alist '("\\.substitutions\\'" . epics-substitution-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(db\\|template\\)\\'" . epics-template-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(src\\|cmd\\|boot\\)\\'" . sh-mode))
+

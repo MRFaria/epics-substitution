@@ -69,9 +69,7 @@
 
 ;;;###autoload
 (define-derived-mode epics-template-mode fundamental-mode "template"
-  (setq font-lock-defaults '(epics-template-mode-highlights))
-  (visual-line-mode 0)
-  (setq truncate-lines t))
+  (setq font-lock-defaults '(epics-template-mode-highlights)))
 
 (provide 'epics-template)
 
