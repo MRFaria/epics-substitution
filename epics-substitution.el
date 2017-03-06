@@ -21,6 +21,7 @@
   "file[[:space:]]+['\"]?\\(\\$([a-zA-Z0-9-_]+)/db/\\)?\\([a-zA-Z0-9-_]+\\).")
 
 (defun org-table-convert-on-the-spot (&optional format)
+  "takes a table format specification and converts the current org-table into one of the specified type"
 ;  (interactive)
   (unless (org-at-table-p) (user-error "No table at point"))
   (org-table-align) ;; make sure we have everything we need
@@ -70,7 +71,7 @@
       (user-error "TABLE_EXPORT_FORMAT invalid"))))
 
 (defun find-char (start end char)
-  "looks for characters outside of strings"
+  "looks for characters (such as comma separators) that are not enclosed by quotes"
   (interactive "r")
   (goto-char start)
   (let (matches)
@@ -83,7 +84,7 @@
     (nreverse matches)))
 
 (defun replace-chars (beg end sep char)
-  "replaces characters given a list of positions"
+  "replaces characters given a list of pointer positions"
   (let ((char-list (find-char beg end char)))
     (dolist (point char-list)
       (goto-char point)
@@ -91,7 +92,7 @@
       (insert sep))))
 
 (defun just-one-space-in-region (start end)
-  "replace all whitespace before and after separator"
+  "replace all whitespace before and after the table separator"
   (goto-char start)
   (catch 'exit-function
     (while (< (point) end)
@@ -103,7 +104,7 @@
         (error (throw 'exit-function t))))))
 
 (defun format-table (beg end)
-  "formats table layour to keep a constant look"
+  "formats table layout to keep a constant look for all substitution tables"
   (goto-char beg)
   (cond ((search-forward-regexp "pattern[ ]?+{" end t )
            (forward-char -1)
@@ -142,10 +143,7 @@
             (goto-char (point-min))
             (while (re-search-forward "{\\|}" (point-max) t)
               (replace-match "|"))))))
-
     (goto-char beg-table)))
-;        (replace-chars (point-min) (point-max) "}" ?|)
- ;       (replace-chars (point-min) (point-max) "," ?|)))))
 
 (defun align-table (beg end)
   "aligns the substitution table
@@ -324,6 +322,7 @@
   (hash-table-values substitution--templates))
 
 (defun substitution-open-template ()
+  "opens the selected template in read-only mode"
   (interactive)
   (if (not substitution--templates)
       (call-interactively 'substitution-get-template-macros))
@@ -354,6 +353,7 @@
       (concat docs "\n"))))
 
 (defun substitution-table-from-template ()
+  "Inserts a substitution table from a list of templates - obtained from looking at the configure/release file"
   (interactive)
   (if (not substitution--templates)
       (call-interactively 'substitution-get-template-macros))
@@ -380,12 +380,14 @@
   (org-table-align))
 
 (defun substitution-convert-table ()
+  "converts the current table to and from org-tables and substitution tables"
   (interactive)
   (if (org-at-table-p)
       (org-table-convert-on-the-spot)
     (convert-substitution-to-table)))
 
 (defun substitution-align-file ()
+  "aligns all substitution tables in the file"
   (interactive)
   "align tables throughout the file"
   (goto-char (point-min))
