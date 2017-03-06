@@ -3,7 +3,7 @@
 ## Installation
 Copy the epics-substitution elisp files into your .emacs.d directory, which should be created when emacs is first run.
 
-epics-substitution requires a recent version of org-mode, the API between the version of org-mode that comes pre-installed with emacs is incompatable with more recent versions of org-mode, and some functions of substitution-mode don't work with the emacs stock org-mode version.
+epics-substitution requires a recent version of org-mode, the API between the version of org-mode that comes pre-installed with emacs is incompatable with more recent versions of org-mode, and SOME functions of substitution-mode don't work with the emacs stock org-mode version. As far as I know, only substitution-convert-table (used to convert between epics-substitution-tables and org-tables) fails.
 
 In your ~/.emacs.d/init.el file add the following:
 
