@@ -21,16 +21,15 @@ In your ~/.emacs.d/init.el file add the following:
 ## Usage
 ```elisp
 M-x substitution-
-```
-tab completes to the possible functions provided by epics-substitution mode
+``` tab completes to the possible functions provided by epics-substitution mode
 
 
-To align an existing table run:
+1) To align an existing table run:
 ```elisp
 M-x substitution-align-table
 ```
 
-To open a template for reading run:
+2) To open a template for reading run:
 ```elisp
 M-x substitution-open-template
 ```
@@ -38,13 +37,13 @@ which prompts for a configure/RELEASE file and displays a list
 of available templates to open
 
 
-To insert a template into the current substitutions file:
+3) To insert a template into the current substitutions file:
 ```elisp
 M-x substitution-table-from-template
 ```
 This creates a skeleton org-table from macros found in the template file selected.
-Fill in this table and run ```elisp substitution-convert-table``` to convert it into
-a subtitution-table
+Fill in this table and run ```substitution-convert-table``` (C-c C-f) to convert it into
+an epics-subtitution-table
 
 
 
