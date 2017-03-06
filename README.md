@@ -27,15 +27,27 @@ tab completes to the possible functions provided by epics-substitution mode
 
 To align an existing table run:
 ```elisp
-substitution-align-table
+M-x substitution-align-table
 ```
-in the first line of the table
 
+To open a template for reading run:
 ```elisp
-substitution-open-template
+M-x substitution-open-template
 ```
-prompts for a configure/RELEASE file and displays a list
+which prompts for a configure/RELEASE file and displays a list
 of available templates to open
+
+
+To insert a template into the current substitutions file:
+```elisp
+M-x substitution-table-from-template
+```
+This creates a skeleton org-table from macros found in the template file selected.
+Fill in this table and run ```elisp substitution-convert-table``` to convert it into
+a subtitution-table
+
+
+
 
 The following keybindings are set by epics-substitution-mode:
 ```elisp
