@@ -19,9 +19,7 @@ In your ~/.emacs.d/init.el file add the following:
 ```
 
 ## Usage
-```elisp
-M-x substitution-
-``` tab completes to the possible functions provided by epics-substitution mode
+Start typing: ```M-x substitution-``` followed by tab to list the possible functions provided by epics-substitution mode
 
 
 1) To align an existing table run:
