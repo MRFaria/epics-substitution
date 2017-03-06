@@ -22,7 +22,7 @@ In your ~/.emacs.d/init.el file add the following:
 Start typing: ```M-x substitution-``` followed by tab to list the possible functions provided by epics-substitution mode
 
 
-1) To align an existing table run:
+1) To align an existing table, run the following on the first line of the table (file .....):
 ```elisp
 M-x substitution-align-table
 ```
