@@ -15,6 +15,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (require 'org-table)
+(require 'align)
 
 (defvar substitution--templates nil)
 (defvar substitution--regex-string
@@ -60,10 +61,7 @@
             (setq end (point))
             (save-excursion
               (save-restriction
-                ;this code is repeated, fix
                 (narrow-to-region beg end)
-                (align-regexp beg (point-max) "\\(\\s-*\\){" 1 3 1)
-                (just-one-space-in-region (point-min) (point-max))
                 (align-table (point-min) (point-max))))
             (goto-char beg))
 
@@ -154,6 +152,8 @@
    (save-restriction
      (narrow-to-region beg end)
      (goto-char (point-min))
+     (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 1 1 )
+     (just-one-space-in-region (point-min) (point-max))
      (replace-chars (point-min) (point-max) "¦" ?,)
      (align-regexp (point-min) (point-max) "\\(\\s-*\\)¦" 1 1 1)
      (replace-chars (point-min) (point-max)"," ?¦))))
@@ -187,8 +187,6 @@
         (format-table (point-min) (point-max))
         (goto-char (point-min))
         (search-forward "pattern" (point-max))
-        (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 3 1)
-        (just-one-space-in-region (point-min) (point-max))
         (align-table (point-min) (point-max))
         ))))
 
@@ -397,6 +395,7 @@
         'nil
       (substitution-align-table))))
 
+
 (defvar epics-substitution-mode-syntax-table nil)
 (defvar epics-substitution-mode-highlights nil)
 (setq epics-substitution-mode-syntax-table
@@ -408,10 +407,12 @@
 (setq epics-substitution-mode-highlights
       '(("file\\|pattern" . font-lock-function-name-face)))
 
+
 (defun scroll-template-up ()
   (interactive)
   (search-backward "file" (point-min) t)
   (move-beginning-of-line nil))
+
 
 (defun scroll-template-down ()
   (interactive)
@@ -434,9 +435,7 @@
   (local-set-key (kbd "M-n") 'scroll-template-down)
   (local-set-key (kbd "M-p") 'scroll-template-up))
 
+
 (provide 'epics-substitution)
 
-(add-to-list 'auto-mode-alist '("\\.substitutions\\'" . epics-substitution-mode))
-(add-to-list 'auto-mode-alist '("\\.\\(db\\|template\\)\\'" . epics-template-mode))
-(add-to-list 'auto-mode-alist '("\\.\\(src\\|cmd\\|boot\\)\\'" . sh-mode))
 
