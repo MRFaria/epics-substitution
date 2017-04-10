@@ -7,12 +7,16 @@ epics-substitution requires a recent version of org-mode, the API between the ve
 
 In your ~/.emacs.d/init.el file add the following:
 
-1) To load the lisp files automatically when needed:
+1) Add the epics-subtitution folder to the load-path
+```elisp
+(add-to-list 'load-path "~/.emacs.d/epics-substitution")
+```
+2) To load the lisp files automatically when needed:
 ```elisp
 (autoload 'epics-substitution-mode "epics-substitution.el" "" t)
 (autoload 'epics-template-mode "epics-template.el" "" t)
 ```
-2) To set the relevant modes automatically by file extension:
+3) To set the relevant modes automatically by file extension:
 ```elisp
 (add-to-list 'auto-mode-alist '("\\.substitutions\\'" . epics-substitution-mode))
 (add-to-list 'auto-mode-alist '("\\.\\(db\\|template\\)\\'" . epics-template-mode))
