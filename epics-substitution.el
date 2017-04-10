@@ -152,10 +152,10 @@
    (save-restriction
      (narrow-to-region beg end)
      (goto-char (point-min))
-     (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 1 1 )
+     (align-regexp (point) (point-max) "\\(\\s-*\\){" 1 0 1 )
      (just-one-space-in-region (point-min) (point-max))
      (replace-chars (point-min) (point-max) "¦" ?,)
-     (align-regexp (point-min) (point-max) "\\(\\s-*\\)¦" 1 1 1)
+     (align-regexp (point-min) (point-max) "\\(\\s-*\\)¦" 1 0 1)
      (replace-chars (point-min) (point-max)"," ?¦))))
 
 
